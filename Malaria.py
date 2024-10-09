@@ -102,3 +102,66 @@ train_generator = imageGen.flow(X_train, y_train, batch_size=32)
 val_generator = ImageDataGenerator(rescale=1/255).flow(X_val, y_val, batch_size=32)
 test_generator = ImageDataGenerator(rescale=1/255).flow(X_test, y_test, batch_size=32)
 
+#Custom CNN architechture to train the model 
+
+model = Sequential([
+    # First Convolutional Block
+    Conv2D(32, kernel_size=(3,3), activation='relu', input_shape=(134,134,3), padding='same'),
+    BatchNormalization(),
+    Conv2D(32, kernel_size=(3,3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D(pool_size=(2,2)),
+    Dropout(0.25),
+    
+    # Second Convolutional Block
+    Conv2D(64, kernel_size=(3,3), activation='relu', padding='same'),
+    BatchNormalization(),
+    Conv2D(64, kernel_size=(3,3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D(pool_size=(2,2)),
+    Dropout(0.25),
+    
+    # Third Convolutional Block
+    Conv2D(128, kernel_size=(3,3), activation='relu', padding='same'),
+    BatchNormalization(),
+    Conv2D(128, kernel_size=(3,3), activation='relu', padding='same'),
+    BatchNormalization(),
+    MaxPooling2D(pool_size=(2,2)),
+    Dropout(0.25),
+    
+    # Fully Connected Layers
+    Flatten(),
+    Dense(512, activation='relu'),
+    BatchNormalization(),
+    Dropout(0.5),
+    Dense(1, activation='sigmoid')
+])
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
+
+model.summary()
+
+#EarlyStopping and ModelCheckpoint to ensure best Epoch gets saved
+from tensorflow.keras.callbacks import EarlyStopping,ModelCheckpoint
+early_stop = EarlyStopping(monitor='val_loss',patience=0,restore_best_weights=True)
+checkpoint = ModelCheckpoint(
+    'test_model.keras',
+    monitor='val_accuracy',
+    save_best_only=True,
+    mode='max',
+    verbose=1
+)
+
+history = model.fit(
+    train_generator,
+    steps_per_epoch=len(X_train) // 32,
+    validation_data=val_generator,
+    validation_steps=len(X_val) // 32,
+    epochs=50,
+    callbacks=[early_stop]
+)
+
+loss, accuracy = model.evaluate(test_generator, verbose=2)
+
+print("Training Finished")
+#Saving the Model
+model.save('final_model_1.keras')
